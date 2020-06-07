@@ -436,6 +436,7 @@ prepare_conf() {
         filestore fd cache size = 32
         run dir = $CEPH_OUT_DIR
         enable experimental unrecoverable data corrupting features = *
+        max striper locks per obj = 3
 EOF
 	if [ "$lockdep" -eq 1 ] ; then
 		wconf <<EOF
