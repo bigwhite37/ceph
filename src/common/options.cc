@@ -222,6 +222,10 @@ std::vector<Option> get_global_options() {
     .add_tag("network")
     .add_see_also("mon_host"),
 
+    Option("max_striper_locks_per_obj", Option::TYPE_UINT, Option::LEVEL_BASIC)
+    .set_default(30)
+    .set_description("maximum number of an object can be locked by striper lock at the same time"),
+
     // lockdep
     Option("lockdep", Option::TYPE_BOOL, Option::LEVEL_DEV)
     .set_description("enable lockdep lock dependency analyzer")
