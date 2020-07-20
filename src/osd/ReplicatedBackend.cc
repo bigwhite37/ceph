@@ -472,6 +472,7 @@ void ReplicatedBackend::submit_transaction(
   osd_reqid_t reqid,
   OpRequestRef orig_op)
 {
+  dout(7) << __func__ << "(xxxxxxx)" << dendl;
   parent->apply_stats(
     soid,
     delta_stats);
@@ -491,20 +492,22 @@ void ReplicatedBackend::submit_transaction(
   ceph_assert(added.size() <= 1);
   ceph_assert(removed.size() <= 1);
 
+  auto acting_recovery_backfill_shards = parent->get_acting_recovery_backfill_shards();
   auto insert_res = in_progress_ops.insert(
     make_pair(
       tid,
       ceph::make_ref<InProgressOp>(
 	tid, on_all_commit,
-	orig_op, at_version)
+	orig_op, at_version,
+  acting_recovery_backfill_shards.size())
       )
     );
   ceph_assert(insert_res.second);
   InProgressOp &op = *insert_res.first->second;
 
   op.waiting_for_commit.insert(
-    parent->get_acting_recovery_backfill_shards().begin(),
-    parent->get_acting_recovery_backfill_shards().end());
+    acting_recovery_backfill_shards.begin(),
+    acting_recovery_backfill_shards.end());
 
   issue_op(
     soid,
@@ -547,6 +550,7 @@ void ReplicatedBackend::submit_transaction(
 
 void ReplicatedBackend::op_commit(const ceph::ref_t<InProgressOp>& op)
 {
+  dout(7) << __func__ << "(xxxxxxx)" << dendl;
   if (op->on_commit == nullptr) {
     // aborted
     return;
@@ -560,17 +564,23 @@ void ReplicatedBackend::op_commit(const ceph::ref_t<InProgressOp>& op)
     op->op->pg_trace.event("op commit");
   }
 
-  op->waiting_for_commit.erase(get_parent()->whoami_shard());
-
-  if (op->waiting_for_commit.empty()) {
-    op->on_commit->complete(0);
+  auto pending_size = op->waiting_for_commit.size();
+  // if (pending_size == op->quorum_size && op->on_commit)
+  if (pending_size == 1 && op->on_commit)
+  {
+    op->on_commit->complete(pending_size);
     op->on_commit = 0;
+  }
+
+  if (op->waiting_for_commit.empty())
+  {
     in_progress_ops.erase(op->tid);
   }
 }
 
 void ReplicatedBackend::do_repop_reply(OpRequestRef op)
 {
+  dout(7) << __func__ << "(xxxxxxx)" << dendl;
   static_cast<MOSDRepOpReply*>(op->get_nonconst_req())->finish_decode();
   auto r = op->get_req<MOSDRepOpReply>();
   ceph_assert(r->get_header().type == MSG_OSD_REPOPREPLY);
@@ -616,10 +626,14 @@ void ReplicatedBackend::do_repop_reply(OpRequestRef op)
       from,
       r->get_last_complete_ondisk());
 
-    if (ip_op.waiting_for_commit.empty() &&
-        ip_op.on_commit) {
-      ip_op.on_commit->complete(0);
+    auto pending_size = ip_op.waiting_for_commit.size();
+    // if (pending_size == ip_op.quorum_size && ip_op.on_commit) {
+    if (pending_size == 1 && ip_op.on_commit) {
+      ip_op.on_commit->complete(pending_size);
       ip_op.on_commit = 0;
+    }
+
+    if (ip_op.waiting_for_commit.empty()) {
       in_progress_ops.erase(iter);
     }
   }
@@ -1000,6 +1014,7 @@ void ReplicatedBackend::issue_op(
   InProgressOp *op,
   ObjectStore::Transaction &op_t)
 {
+  dout(7) << __func__ << "(xxxxxxx)" << dendl;
   if (parent->get_acting_recovery_backfill_shards().size() > 1) {
     if (op->op) {
       op->op->pg_trace.event("issue replication ops");
@@ -1015,6 +1030,7 @@ void ReplicatedBackend::issue_op(
     encode(log_entries, logs);
 
     for (const auto& shard : get_parent()->get_acting_recovery_backfill_shards()) {
+      dout(7) << "shard.osd = " << shard.osd << ", parent.osd = " << parent->whoami_shard().osd << dendl;
       if (shard == parent->whoami_shard()) continue;
       const pg_info_t &pinfo = parent->get_shard_info().find(shard)->second;
 

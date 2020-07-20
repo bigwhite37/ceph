@@ -10477,22 +10477,32 @@ class C_OSD_RepopCommit : public Context {
 public:
   C_OSD_RepopCommit(PrimaryLogPG *pg, PrimaryLogPG::RepGather *repop)
     : pg(pg), repop(repop) {}
-  void finish(int) override {
+  void finish(int r) override {
+    if (r)
+      pg->repop_quorum_committed(repop.get());
+
     pg->repop_all_committed(repop.get());
   }
 };
 
+void PrimaryLogPG::repop_quorum_committed(RepGather *repop)
+{
+  dout(10) << __func__ << "(xxxxxxx): repop tid " << repop->rep_tid << " quorum committed "
+           << dendl;
+
+  repop->quorum_committed = true;
+  if (!repop->rep_aborted)
+    eval_repop(repop);
+}
+
 void PrimaryLogPG::repop_all_committed(RepGather *repop)
 {
-  dout(10) << __func__ << ": repop tid " << repop->rep_tid << " all committed "
-	   << dendl;
+  dout(10) << __func__ << "(xxxxxxx): repop tid " << repop->rep_tid << " all committed "
+           << dendl;
   repop->all_committed = true;
-  if (!repop->rep_aborted) {
-    if (repop->v != eversion_t()) {
-      recovery_state.complete_write(repop->v, repop->pg_local_last_complete);
-    }
-    eval_repop(repop);
-  }
+
+  if (!repop->rep_aborted && repop->v != eversion_t())
+    recovery_state.complete_write(repop->v, repop->pg_local_last_complete);
 }
 
 void PrimaryLogPG::op_applied(const eversion_t &applied_version)

@@ -336,6 +336,7 @@ private:
   struct InProgressOp : public RefCountedObject {
     ceph_tid_t tid;
     std::set<pg_shard_t> waiting_for_commit;
+    size_t quorum_size;
     Context *on_commit;
     OpRequestRef op;
     eversion_t v;
@@ -344,10 +345,15 @@ private:
     }
   private:
     FRIEND_MAKE_REF(InProgressOp);
-    InProgressOp(ceph_tid_t tid, Context *on_commit, OpRequestRef op, eversion_t v)
+    InProgressOp(ceph_tid_t tid, Context *on_commit, OpRequestRef op, eversion_t v, size_t waiting_size)
       :
 	tid(tid), on_commit(on_commit),
-	op(op), v(v) {}
+	op(op), v(v) {
+    if (waiting_size % 2)
+      quorum_size = waiting_size / 2;
+
+    quorum_size = waiting_size / 2 - 1;
+  }
   };
   std::map<ceph_tid_t, ceph::ref_t<InProgressOp>> in_progress_ops;
 public:

@@ -781,6 +781,7 @@ public:
     ceph_tid_t rep_tid;
 
     bool rep_aborted;
+    bool quorum_committed = true;
     bool all_committed;
     
     utime_t   start;
@@ -951,6 +952,7 @@ protected:
   xlist<RepGather*> repop_queue;
 
   friend class C_OSD_RepopCommit;
+  void repop_quorum_committed(RepGather *repop);
   void repop_all_committed(RepGather *repop);
   void eval_repop(RepGather*);
   void issue_repop(RepGather *repop, OpContext *ctx);
