@@ -955,18 +955,18 @@ EOF
             fi
         fi
 
-        while ! ceph_adm -h | grep -c -q ^restful ; do
-            debug echo 'waiting for mgr restful module to start'
-            sleep 1
-        done
-        if ceph_adm restful create-self-signed-cert; then
-            SF=`mktemp`
-            ceph_adm restful create-key admin -o $SF
-            RESTFUL_SECRET=`cat $SF`
-            rm $SF
-        else
-            debug echo MGR Restful is not working, perhaps the package is not installed?
-        fi
+        # while ! ceph_adm -h | grep -c -q ^restful ; do
+        #     debug echo 'waiting for mgr restful module to start'
+        #     sleep 1
+        # done
+        # if ceph_adm restful create-self-signed-cert; then
+        #     SF=`mktemp`
+        #     ceph_adm restful create-key admin -o $SF
+        #     RESTFUL_SECRET=`cat $SF`
+        #     rm $SF
+        # else
+        #     debug echo MGR Restful is not working, perhaps the package is not installed?
+        # fi
     fi
 
     if [ "$cephadm" -eq 1 ]; then
@@ -1032,15 +1032,15 @@ EOF
             fi
 
 	    # wait for volume module to load
-	    while ! ceph_adm fs volume ls ; do sleep 1 ; done
-            local fs=0
-            for name in a b c d e f g h i j k l m n o p
-            do
-                ceph_adm fs volume create ${name}
-                ceph_adm fs authorize ${name} "client.fs_${name}" / rwp >> "$keyring_fn"
-                fs=$(($fs + 1))
-                [ $fs -eq $CEPH_NUM_FS ] && break
-            done
+	    # while ! ceph_adm fs volume ls ; do sleep 1 ; done
+        #     local fs=0
+        #     for name in a b c d e f g h i j k l m n o p
+        #     do
+        #         ceph_adm fs volume create ${name}
+        #         ceph_adm fs authorize ${name} "client.fs_${name}" / rwp >> "$keyring_fn"
+        #         fs=$(($fs + 1))
+        #         [ $fs -eq $CEPH_NUM_FS ] && break
+        #     done
         fi
     fi
 

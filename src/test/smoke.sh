@@ -5,6 +5,7 @@ source $CEPH_ROOT/qa/standalone/ceph-helpers.sh
 mon_port=$(get_unused_port)
 
 function run() {
+    echo 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
     local dir=$1
     shift
 
@@ -23,6 +24,7 @@ function run() {
 }
 
 function TEST_minimal() {
+    echo '22222222222222222222222222222222222222'
     local dir=$1
 
     run_mon $dir a
@@ -35,6 +37,7 @@ function TEST_minimal() {
 }
 
 function TEST_multimon() {
+    echo '1111111111111111111111111111111111111'
     local dir=$1
     MONA="127.0.0.1:$((mon_port++))"
     MONB="127.0.0.1:$((mon_port++))"
