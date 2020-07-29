@@ -308,7 +308,7 @@ else
 	if [ "$control" != "debian/control" ] ; then rm $control; fi
         ;;
     centos|fedora|rhel|ol|virtuozzo)
-        builddepcmd="dnf -y builddep --allowerasing"
+        builddepcmd="yum-builddep -y"
         echo "Using dnf to install dependencies"
         case "$ID" in
             fedora)
@@ -316,16 +316,16 @@ else
                 ;;
             centos|rhel|ol|virtuozzo)
                 MAJOR_VERSION="$(echo $VERSION_ID | cut -d. -f1)"
-                $SUDO dnf install -y dnf-utils
+                $SUDO yum install -y yum-utils
                 rpm --quiet --query epel-release || \
-		    $SUDO dnf -y install --nogpgcheck https://dl.fedoraproject.org/pub/epel/epel-release-latest-$MAJOR_VERSION.noarch.rpm
+		    $SUDO yum -y install --nogpgcheck https://dl.fedoraproject.org/pub/epel/epel-release-latest-$MAJOR_VERSION.noarch.rpm
                 $SUDO rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-$MAJOR_VERSION
                 $SUDO rm -f /etc/yum.repos.d/dl.fedoraproject.org*
 		if test $ID = centos -a $MAJOR_VERSION = 8 ; then
-                    $SUDO dnf config-manager --set-enabled PowerTools
+                    $SUDO yum config-manager --set-enabled PowerTools
 		    # before EPEL8 and PowerTools provide all dependencies, we use sepia for the dependencies
-                    $SUDO dnf config-manager --add-repo http://apt-mirror.front.sepia.ceph.com/lab-extras/8/
-                    $SUDO dnf config-manager --setopt=apt-mirror.front.sepia.ceph.com_lab-extras_8_.gpgcheck=0 --save
+                    $SUDO yum config-manager --add-repo http://apt-mirror.front.sepia.ceph.com/lab-extras/8/
+                    $SUDO yum config-manager --setopt=apt-mirror.front.sepia.ceph.com_lab-extras_8_.gpgcheck=0 --save
                 elif test $ID = rhel -a $MAJOR_VERSION = 8 ; then
                     $SUDO subscription-manager repos --enable "codeready-builder-for-rhel-8-${ARCH}-rpms"
 		    $SUDO dnf config-manager --add-repo http://apt-mirror.front.sepia.ceph.com/lab-extras/8/

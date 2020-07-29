@@ -46,10 +46,7 @@ if [[ "$PYBUILD" =~ ^3(\..*)?$ ]] ; then
     ARGS+=" -DWITH_PYTHON3=${PYBUILD}"
 fi
 
-if type ccache > /dev/null 2>&1 ; then
-    echo "enabling ccache"
-    ARGS+=" -DWITH_CCACHE=ON"
-fi
+ARGS+=" -DWITH_CCACHE=ON"
 
 mkdir $BUILD_DIR
 cd $BUILD_DIR

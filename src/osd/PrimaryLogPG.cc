@@ -10543,21 +10543,35 @@ class C_OSD_RepopCommit : public Context {
 public:
   C_OSD_RepopCommit(PrimaryLogPG *pg, PrimaryLogPG::RepGather *repop)
     : pg(pg), repop(repop) {}
-  void finish(int) override {
-    pg->repop_all_committed(repop.get());
+  void finish(int r) override {
+    if (r)
+      pg->repop_quorum_committed(repop.get());
+    else
+      pg->repop_all_committed(repop.get());
   }
 };
 
+void PrimaryLogPG::repop_quorum_committed(RepGather *repop)
+{
+  dout(10) << __func__ << ": repop tid " << repop->rep_tid
+           << " quorum committed " << dendl;
+
+  repop->quorum_committed = true;
+  if (!repop->rep_aborted)
+    eval_repop(repop);
+}
+
 void PrimaryLogPG::repop_all_committed(RepGather *repop)
 {
-  dout(10) << __func__ << ": repop tid " << repop->rep_tid << " all committed "
-	   << dendl;
+  dout(10) << __func__ << ": repop tid " << repop->rep_tid
+    << " all committed " << dendl;
   repop->all_committed = true;
   if (!repop->rep_aborted) {
     if (repop->v != eversion_t()) {
       recovery_state.complete_write(repop->v, repop->pg_local_last_complete);
     }
-    eval_repop(repop);
+    if (!repop->quorum_committed)
+      eval_repop(repop);
   }
 }
 
@@ -10581,11 +10595,14 @@ void PrimaryLogPG::op_applied(const eversion_t &applied_version)
 
 void PrimaryLogPG::eval_repop(RepGather *repop)
 {
-  dout(10) << "eval_repop " << *repop
-    << (repop->op && repop->op->get_req<MOSDOp>() ? "" : " (no op)") << dendl;
+  dout(10) << __func__ << " " << *repop
+    << (repop->op && repop->op->get_req<MOSDOp>() ? "" : " (no op)")
+    << " all_committed is " << repop->all_committed
+    << " quorum_committed is " << repop->quorum_committed 
+    << " rep_responsed is " << repop->rep_responsed << dendl;
 
-  // ondisk?
-  if (repop->all_committed) {
+  // if (!repop->rep_responsed && (repop->all_committed || repop->quorum_committed)) {
+  if (repop->quorum_committed || repop->all_committed) {
     dout(10) << " commit: " << *repop << dendl;
     for (auto p = repop->on_committed.begin();
 	 p != repop->on_committed.end();
@@ -10615,7 +10632,8 @@ void PrimaryLogPG::eval_repop(RepGather *repop)
     if (repop_queue.front() == repop) {
       RepGather *to_remove = nullptr;
       while (!repop_queue.empty() &&
-	     (to_remove = repop_queue.front())->all_committed) {
+	     ((to_remove = repop_queue.front())->quorum_committed ||
+        (to_remove = repop_queue.front())->all_committed)) {
 	repop_queue.pop_front();
 	for (auto p = to_remove->on_success.begin();
 	     p != to_remove->on_success.end();
@@ -10647,6 +10665,8 @@ void PrimaryLogPG::issue_repop(RepGather *repop, OpContext *ctx)
   }
 
   Context *on_all_commit = new C_OSD_RepopCommit(this, repop);
+  dout(7) << __func__ << ": tid " << repop->rep_tid << " on_commit " << on_all_commit << dendl;
+
   if (!(ctx->log.empty())) {
     ceph_assert(ctx->at_version >= projected_last_update);
     projected_last_update = ctx->at_version;

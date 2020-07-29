@@ -781,7 +781,9 @@ public:
     ceph_tid_t rep_tid;
 
     bool rep_aborted;
+    bool quorum_committed;
     bool all_committed;
+    bool rep_responsed;
     
     utime_t   start;
     
@@ -802,7 +804,9 @@ public:
       nref(1),
       rep_tid(rt), 
       rep_aborted(false),
+      quorum_committed(false),
       all_committed(false),
+      rep_responsed(false),
       pg_local_last_complete(lc),
       lock_manager(std::move(c->lock_manager)),
       on_committed(std::move(c->on_committed)),
@@ -822,7 +826,9 @@ public:
       r(r),
       rep_tid(rt),
       rep_aborted(false),
+      quorum_committed(false),
       all_committed(false),
+      rep_responsed(false),
       pg_local_last_complete(lc),
       lock_manager(std::move(manager)) {
       if (on_complete) {
@@ -951,6 +957,7 @@ protected:
   xlist<RepGather*> repop_queue;
 
   friend class C_OSD_RepopCommit;
+  void repop_quorum_committed(RepGather *repop);
   void repop_all_committed(RepGather *repop);
   void eval_repop(RepGather*);
   void issue_repop(RepGather *repop, OpContext *ctx);
