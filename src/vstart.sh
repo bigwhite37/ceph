@@ -4,6 +4,7 @@
 
 # abort on failure
 set -e
+set -o xtrace
 
 quoted_print() {
     for s in "$@"; do
@@ -552,14 +553,14 @@ prepare_conf() {
     local msgr_conf=''
     if [ $msgr -eq 21 ]; then
         msgr_conf="
-        ms bind msgr2 = true
+        ms bind msgr2 = false
         ms bind msgr1 = true
 ";
     fi
     if [ $msgr -eq 2 ]; then
 	msgr_conf="
-        ms bind msgr2 = true
-        ms bind msgr1 = false
+        ms bind msgr2 = false
+        ms bind msgr1 = true
 ";
     fi
     if [ $msgr -eq 1 ]; then
@@ -1153,8 +1154,11 @@ EOF
 
 if [ "$debug" -eq 0 ]; then
     CMONDEBUG='
-        debug mon = 10
-        debug ms = 1'
+        debug mon = 20
+        debug paxos = 20
+        debug auth = 20
+        debug mgrc = 20
+        debug ms = 50'
 else
     debug echo "** going verbose **"
     CMONDEBUG='
@@ -1162,7 +1166,7 @@ else
         debug paxos = 20
         debug auth = 20
         debug mgrc = 20
-        debug ms = 1'
+        debug ms = 50'
 fi
 
 if [ -n "$MON_ADDR" ]; then
@@ -1245,7 +1249,8 @@ if [ $CEPH_NUM_MON -gt 0 ]; then
     cat <<EOF | $CEPH_BIN/ceph -c $conf_fn config assimilate-conf -i -
 [global]
 osd_pool_default_size = $OSD_POOL_DEFAULT_SIZE
-osd_pool_default_min_size = 1
+osd_pool_default_primary_write_size = 2
+osd_pool_default_min_size = 2
 
 [mon]
 mon_osd_reporter_subtree_level = osd
@@ -1259,6 +1264,8 @@ osd_scrub_load_threshold = 2000
 osd_debug_op_order = true
 osd_debug_misdirected_ops = true
 osd_copyfrom_max_chunk = 524288
+debug osd = 50
+debug ms = 50
 
 [mds]
 mds_debug_frag = true

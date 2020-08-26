@@ -2594,6 +2594,16 @@ std::vector<Option> get_global_options() {
     .set_description("the number of copies of an object for new replicated pools")
     .add_service("mon"),
 
+    // TODO add description
+    Option("osd_pool_default_primary_write_size", Option::TYPE_UINT, Option::LEVEL_ADVANCED)
+    .set_default(3)
+    .set_min_max(0, 10)
+    .set_flag(Option::FLAG_RUNTIME)
+    .set_description("")
+    .set_long_description("")
+    .add_see_also("osd_pool_default_size")
+    .add_service("mon"),
+
     Option("osd_pool_default_min_size", Option::TYPE_UINT, Option::LEVEL_ADVANCED)
     .set_default(0)
     .set_min_max(0, 255)

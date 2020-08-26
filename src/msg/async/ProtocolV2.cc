@@ -1023,8 +1023,10 @@ CtPtr ProtocolV2::handle_hello(ceph::bufferlist &payload)
     connection->lock.unlock();
     messenger->learned_addr(a);
     if (cct->_conf->ms_inject_internal_delays &&
-        cct->_conf->ms_inject_socket_failures) {
-      if (rand() % cct->_conf->ms_inject_socket_failures == 0) {
+        100
+        /* cct->_conf->ms_inject_socket_failures */) {
+      // if (rand() % cct->_conf->ms_inject_socket_failures == 0) {
+      if (rand() % 100 == 0) {
         ldout(cct, 10) << __func__ << " sleep for "
                        << cct->_conf->ms_inject_internal_delays << dendl;
         utime_t t;

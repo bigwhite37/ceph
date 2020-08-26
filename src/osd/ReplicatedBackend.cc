@@ -501,10 +501,12 @@ void ReplicatedBackend::submit_transaction(
     );
   ceph_assert(insert_res.second);
   InProgressOp &op = *insert_res.first->second;
+  auto acting_recovery_backfill_shards = parent->get_acting_recovery_backfill_shards();
+  op.set_tolerated_uncommit_size(get_osdmap(), get_info().pgid.pgid, acting_recovery_backfill_shards.size());
 
   op.waiting_for_commit.insert(
-    parent->get_acting_recovery_backfill_shards().begin(),
-    parent->get_acting_recovery_backfill_shards().end());
+    acting_recovery_backfill_shards.begin(),
+    acting_recovery_backfill_shards.end());
 
   issue_op(
     soid,
@@ -554,13 +556,20 @@ void ReplicatedBackend::op_commit(const ceph::ref_t<InProgressOp>& op)
 
   FUNCTRACE(cct);
   OID_EVENT_TRACE_WITH_MSG((op && op->op) ? op->op->get_req() : NULL, "OP_COMMIT_BEGIN", true);
-  dout(10) << __func__ << ": " << op->tid << dendl;
+  dout(10) << __func__ << ": tid " << op->tid
+           << " waiting_for_commit_size " << op->waiting_for_commit.size() << dendl;
   if (op->op) {
     op->op->mark_event("op_commit");
     op->op->pg_trace.event("op commit");
   }
 
   op->waiting_for_commit.erase(get_parent()->whoami_shard());
+  op->primary_committed = true;
+
+  auto waiting_size = op->waiting_for_commit.size();
+  if (waiting_size == op->tolerated_uncommit_size) {
+    op->on_commit->quorum_complete(waiting_size);
+  }
 
   if (op->waiting_for_commit.empty()) {
     op->on_commit->complete(0);
@@ -592,11 +601,15 @@ void ReplicatedBackend::do_repop_reply(OpRequestRef op)
       dout(7) << __func__ << ": tid " << ip_op.tid << " op " //<< *m
 	      << " ack_type " << (int)r->ack_type
 	      << " from " << from
+        << " waiting_for_commit_size " << ip_op.waiting_for_commit.size()
+        << " primary_committed " << ip_op.primary_committed
 	      << dendl;
     else
       dout(7) << __func__ << ": tid " << ip_op.tid << " (no op) "
 	      << " ack_type " << (int)r->ack_type
 	      << " from " << from
+        << " waiting_for_commit_size " << ip_op.waiting_for_commit.size()
+        << " primary_committed " << ip_op.primary_committed
 	      << dendl;
 
     // oh, good.
@@ -615,6 +628,13 @@ void ReplicatedBackend::do_repop_reply(OpRequestRef op)
     parent->update_peer_last_complete_ondisk(
       from,
       r->get_last_complete_ondisk());
+
+    auto waiting_size = ip_op.waiting_for_commit.size();
+    if (ip_op.on_commit &&
+        ip_op.primary_committed &&
+        waiting_size == ip_op.tolerated_uncommit_size) {
+      ip_op.on_commit->quorum_complete(waiting_size);
+    }
 
     if (ip_op.waiting_for_commit.empty() &&
         ip_op.on_commit) {
@@ -1053,6 +1073,7 @@ void ReplicatedBackend::do_repop(OpRequestRef op)
 
   dout(10) << __func__ << " " << soid
            << " v " << m->version
+           << " tid " << m->get_tid()
 	   << (m->logbl.length() ? " (transaction)" : " (parallel exec")
 	   << " " << m->logbl.length()
 	   << dendl;

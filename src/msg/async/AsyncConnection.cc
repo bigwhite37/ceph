@@ -207,13 +207,20 @@ ssize_t AsyncConnection::read_until(unsigned len, char *p)
 {
   ldout(async_msgr->cct, 25) << __func__ << " len is " << len << " state_offset is "
                              << state_offset << dendl;
-
-  if (async_msgr->cct->_conf->ms_inject_socket_failures && cs) {
-    if (rand() % async_msgr->cct->_conf->ms_inject_socket_failures == 0) {
+  int ms_inject_socket_failures = 100;
+  if (ms_inject_socket_failures && cs) {
+    if (rand() % ms_inject_socket_failures == 0) {
       ldout(async_msgr->cct, 0) << __func__ << " injecting socket failure" << dendl;
       cs.shutdown();
     }
   }
+
+  // if (async_msgr->cct->_conf->ms_inject_socket_failures && cs) {
+  //   if (rand() % async_msgr->cct->_conf->ms_inject_socket_failures == 0) {
+  //     ldout(async_msgr->cct, 0) << __func__ << " injecting socket failure" << dendl;
+  //     cs.shutdown();
+  //   }
+  // }
 
   ssize_t r = 0;
   uint64_t left = len - state_offset;
@@ -317,12 +324,19 @@ ssize_t AsyncConnection::write(ceph::buffer::list &bl,
 // else return < 0 means error
 ssize_t AsyncConnection::_try_send(bool more)
 {
-  if (async_msgr->cct->_conf->ms_inject_socket_failures && cs) {
-    if (rand() % async_msgr->cct->_conf->ms_inject_socket_failures == 0) {
+  if (cs) {
+    if (rand() % 100 == 0) {
       ldout(async_msgr->cct, 0) << __func__ << " injecting socket failure" << dendl;
       cs.shutdown();
     }
   }
+
+  // if (async_msgr->cct->_conf->ms_inject_socket_failures && cs) {
+  //   if (rand() % async_msgr->cct->_conf->ms_inject_socket_failures == 0) {
+  //     ldout(async_msgr->cct, 0) << __func__ << " injecting socket failure" << dendl;
+  //     cs.shutdown();
+  //   }
+  // }
 
   ceph_assert(center->in_thread());
   ldout(async_msgr->cct, 25) << __func__ << " cs.send " << outgoing_bl.length()

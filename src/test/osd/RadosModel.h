@@ -1821,8 +1821,8 @@ public:
     std::lock_guard l{context->state_lock};
     uint64_t tid = info->id;
     cout << num << ":  finishing rollback tid " << tid
-	 << " to " << context->prefix + oid << std::endl;
-    ceph_assert((int)(info->id) > last_finished);
+	  << " to " << context->prefix + oid << " last_finished " << last_finished << std::endl;
+    ceph_assert((int)(tid) > last_finished);
     last_finished = info->id;
 
     int r;
